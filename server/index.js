@@ -3,15 +3,16 @@ const app = express();
 const cors = require("cors");
 const port = 3042;
 const secp = require('ethereum-cryptography/secp256k1');
-const { toHex } = require('ethereum-cryptography/utils');
+const {keccak256} = require('ethereum-cryptography/keccak');
 
 app.use(cors());
 app.use(express.json());
 
+// public keys
 const balances = {
-  "025f042630fc5d7b05b7c87b151b09fa07f09fcf1a025d1d30512003864d60cc47": 100,
-  "0214eeb3d274b17081c229d656ca1967cb4bb9a291f85d0af98ef6a1b97cd07217": 50,
-  "02b066969240c947a85463b70b4316a758b396af44086d0fa3b19042f9bc07188b": 75,
+  "02fb1969ab95a0ad214b987e95a79141bb8306b938574893722814fe6b2375f4a4": 100,
+  "03ece07810c01fa931a22f104263394022cbea0353e8de8c719d4fa07321fff39a": 50,
+  "02d6048b8f35ed6369f42cef8682f95d3c1ff56279b99921be3bbf97a127c8accf": 75,
 };
 
 app.get("/balance/:address", (req, res) => {
@@ -21,21 +22,21 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  // TODO get a signature from the client-side application CHECK
-  // recover the public address from the signature. this will be the sender
-  // we want only the person with the private key to be able to send funds
-  //derive address from signature on the server
-  console.log('received data:', req.body);
-  
-  const { sender, recipient, amount, signature, message } = req.body;
-  //recover public address from the signature: 
-  const messageHash = toHex(secp.keccak256(message));
-  const publicKey = secp.secp256k1.recover(messageHash, signature);
-  const recoveredAddress = toHex(secp.secp256k1.getPublicKey(publicKey)); 
+  const { sender, sig:sigStringed, msg } = req.body;
+  const { recipient, amount } = msg;
 
-  if(recoveredAddress !== sender) {
-    return res.status(400),send({message:"Invalid signature!"});
+  // convert stringified bigints back to bigints
+  const sig = {
+    ...sigStringed,
+    r: BigInt(sigStringed.r),
+    s: BigInt(sigStringed.s)
   }
+
+  const hashMessage = (message) => keccak256(Uint8Array.from(message));
+
+  const isValid = secp.secp256k1.verify(sig, hashMessage(msg), sender) === true;
+  
+  if(!isValid) res.status(400).send({ message: "Bad signature!"});
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
@@ -58,4 +59,3 @@ function setInitialBalance(address) {
     balances[address] = 0;
   }
 }
- 
