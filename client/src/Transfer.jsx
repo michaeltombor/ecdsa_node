@@ -1,7 +1,7 @@
 import { useState } from "react";
 import server from "./server";
 
-function Transfer({ address, setBalance }) {
+function Transfer({ address, setBalance, signMessage }) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
 
@@ -10,19 +10,27 @@ function Transfer({ address, setBalance }) {
   async function transfer(evt) {
     evt.preventDefault();
 
-    try {
-      const {
-        data: { balance },
-      } = await server.post(`send`, {
-        sender: address,
-        amount: parseInt(sendAmount),
-        recipient,
-      });
-      setBalance(balance);
-    } catch (ex) {
-      alert(ex.response.data.message);
-    }
+    // Create a message to sign
+  const message = `Send ${sendAmount} to ${recipient}`;
+  
+  // Sign the message using the signMessage function passed as a prop
+  const signature = signMessage(message);
+
+  try {
+    const {
+      data: { balance },
+    } = await server.post(`send`, {
+      sender: address,
+      amount: parseInt(sendAmount),
+      recipient,
+      signature: signature, // Send the signature to the server
+      message: message      // Optionally, send the original message for verification
+    });
+    setBalance(balance);
+  } catch (ex) {
+    alert(ex.response.data.message);
   }
+}
 
   return (
     <form className="container transfer" onSubmit={transfer}>

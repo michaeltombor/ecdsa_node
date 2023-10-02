@@ -18,6 +18,9 @@ function Wallet({ address, setAddress, balance, setBalance, privateKey, setPriva
     }
   }
 
+  
+  
+
   return (
     <div className="container wallet">
       <h1>Your Wallet</h1>

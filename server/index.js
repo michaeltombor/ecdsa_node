@@ -2,6 +2,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const port = 3042;
+const secp = require('ethereum-cryptography/secp256k1');
+const { toHex } = require('ethereum-cryptography/utils');
 
 app.use(cors());
 app.use(express.json());
@@ -19,7 +21,21 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  const { sender, recipient, amount } = req.body;
+  // TODO get a signature from the client-side application CHECK
+  // recover the public address from the signature. this will be the sender
+  // we want only the person with the private key to be able to send funds
+  //derive address from signature on the server
+  console.log('received data:', req.body);
+  
+  const { sender, recipient, amount, signature, message } = req.body;
+  //recover public address from the signature: 
+  const messageHash = toHex(secp.keccak256(message));
+  const publicKey = secp.secp256k1.recover(messageHash, signature);
+  const recoveredAddress = toHex(secp.secp256k1.getPublicKey(publicKey)); 
+
+  if(recoveredAddress !== sender) {
+    return res.status(400),send({message:"Invalid signature!"});
+  }
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
@@ -42,3 +58,4 @@ function setInitialBalance(address) {
     balances[address] = 0;
   }
 }
+ 
